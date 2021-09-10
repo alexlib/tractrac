@@ -1,9 +1,25 @@
 % Run GUI with 
 % >> tractrac
+% Warning : Matlab GUI will not be developped further than version 2.0 (2021)
+% Please switch soon to Python version, which is also graphical
 
 function varargout = tractrac(varargin)
 version='2.0';
-% Last Modified by GUIDE v2.5 05-Jun-2019 08:48:02
+
+% 
+
+% Check Topolboxx Licences 
+%names = dependencies.toolboxDependencyAnalysis(files_in) 
+if ~license('test','Statistics_Toolbox'),
+	disp('ERROR! Missing Toolbox for TracTrac to run properly : Statistics Toolbox')
+	return
+end
+
+if ~license('test','Image_Toolbox'),
+	disp('ERROR! Missing Toolbox for TracTrac to run properly : Image Processing Toolbox')
+	return
+end
+
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
@@ -42,6 +58,18 @@ guidata(hObject, handles);
 if exist('tractrac.png')
 I=imread('tractrac.png');
 imshow(I,'Parent',handles.axes1);
+end
+
+% Check Topolboxx Licences 
+%names = dependencies.toolboxDependencyAnalysis(files_in) 
+if ~license('test','Statistics_Toolbox'),
+	disp('ERROR! Missing Toolbox for TracTrac to run properly : Statistics Toolbox')
+	return
+end
+
+if ~license('test','Image_Toolbox'),
+	disp('ERROR! Missing Toolbox for TracTrac to run properly : Image Processing Toolbox')
+	return
 end
 
 % set defaut filemenu path to current folder
@@ -259,7 +287,8 @@ if th.BgOn,
     set(handles.Info,'String',sprintf('... Initializing Background ... %02i',floor(i/nbgstart*100)));
     drawnow
         if isfield(data,'cam'), 
-        I=snapshot(data.cam)
+        %I=snapshot(data.cam);
+        break
         elseif data.isvid
         I=read(vid1,i);
         else
@@ -571,7 +600,7 @@ end
 
 % Only save the Mean velocities on the pixel grid
 %if get(handles.SaveAverageOn,'Value'),
-if (n>=length(N)-nFrames+2),
+if (n>=length(N)-nFrames+2)&(length(idgood)>1),
     id_x=sub2ind(size(I0),round(X1(idgood,2)),round(X1(idgood,1)));
     U_average(id_x)=U_average(id_x)+um(idgood,1);
     V_average(id_x)=V_average(id_x)+um(idgood,2);
@@ -593,7 +622,7 @@ switch get(handles.PlotImageType,'Value')
     case 3
     set(handles.h_image,'CData',imadjust(F));
     case 4
-    set(handles.h_image,'CData',imadjust(Ff));
+    set(handles.h_image,'CData',(Ff-min(Ff(:)))/(max(Ff(:))-min(Ff(:))));
     case 5
     set(handles.h_image,'CData',B);
     case 6
@@ -875,7 +904,7 @@ function Save_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 data=guidata(hObject);
 if isfield(data,'Pts'),
- filename=data.fname;
+ %filename=data.fname;
  filename=[data.path '/TracTrac/' data.fname '_track'];
  if ~ exist([data.path '/TracTrac/'])
      mkdir([data.path '/TracTrac/'])
@@ -1343,7 +1372,7 @@ function load_img(hObject, eventdata, handles)
 data=guidata(hObject);
 if isfield(data,'cam'), delete(data.cam); data=rmfield(data,'cam'); end
 
-% Load prohection file if exist
+% Load projection file if exist
 if exist([data.path '/projection.txt']);
     data.proj=dlmread([data.path '/projection.txt']);
 else
@@ -2651,6 +2680,9 @@ function Filelist_Callback(hObject, eventdata, handles)
 % pathstr=[];
 % end
 
+% Force saving trajectories
+set(handles.SaveTrajOn,'Value',1)
+
 [file, path] = uigetfile({'*.txt;','Filelist in txt format'});
 filelist=[path file];
 
@@ -2660,24 +2692,37 @@ fid=fopen(filelist,'r');
 T=textscan(fid,'%s');
 
 for t=1:length(T{1,:})
-filename=T{1}{t};
-set(handles.Load_vid,'String',filename);
-drawnow
+filename=T{1}{t}
+
+
+%set(handles.Load_vid,'String',filename);
+%drawnow
+
+data=guidata(hObject);
+[path, name, ext] = fileparts(filename);
+data.path=path;
+data.fname=name;
+data.ext=ext;
+data.isvid=1; % filelist only works for video files
+guidata(hObject,data);
+
 if exist(filename)
 % Load video filemenu
 load_video(hObject, eventdata, handles)
 % start treatment
 Start_Callback(hObject, eventdata, handles)
 % save treatment
-%Save_Callback(hObject, eventdata, handles)
-SaveASCII_Callback(hObject, eventdata, handles)
+Save_Callback(hObject, eventdata, handles) % MAT format
+%SaveASCII_Callback(hObject, eventdata, handles) % ASCII format
+Save_Averages_Callback(hObject, eventdata, handles)
 % Post Processing
 PostProc_Callback(hObject, eventdata, handles)
 % save Post Processing
 PostSave_Callback(hObject, eventdata, handles)
 %clear existing data
-guidata(hObject,struct());
+%guidata(hObject,struct());
 end
+
 end
 fclose(fid)
 else
